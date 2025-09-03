@@ -44,7 +44,8 @@
 set -e
 
 # Configuration - Default values set
-API_KEY="${API_KEY:-4fe933e44a10c6d18da7820f6e5be909}"
+#Old key API_KEY="${API_KEY:-4fe933e44a10c6d18da7820f6e5be909}"
+API_KEY="${API_KEY:-676e1e1eecab1d1e66dfda7517fe9ba2}"
 BASE_URL="https://api.flickr.com/services/rest/"
 
 # Parse command line arguments with defaults
