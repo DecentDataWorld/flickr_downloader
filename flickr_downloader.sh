@@ -2,7 +2,7 @@
 
 # Flickr Photo Downloader with Metadata - Version 21
 # Usage: ./flickr_downloader.sh [user_id] [output_root_dir] [max_pages]
-# Defaults: user_id=46658241@N06, output_root_dir=current directory, max_pages=all
+# Defaults: user_id=46658241@N06, output_root_dir=current directory, pages=all
 # Uses default API key for convenience
 #
 # This script outputs the following structure to either the provided output dir or the current dir by default:
@@ -77,7 +77,7 @@ flickr_api_call() {
     local method="$1"
     local params="$2"
     local url="${BASE_URL}?method=${method}&api_key=${API_KEY}&format=json&nojsoncallback=1&${params}"
-    
+    echo $url
     curl -s "$url"
 }
 
