@@ -16,28 +16,29 @@
 #
 # 1. All defaults:
 #    ./flickr_downloader.sh
-#    # user_id=46658241@N06, output=current directory, pages=all
+#    # api_key=5ae791bbb3bc847bf6e68e6fd1956f59 user_id=46658241@N06, output=current directory, pages=all
 #
 # 2. Custom user, default output and pages:
-#    ./flickr_downloader.sh some_user@N00
+#    ./flickr_downloader.5ae791bbb3bc847bf6e68e6fd1956f59 some_user@N00
 #    # output=current directory, pages=all
 #
 # 3. Custom user and output directory:
-#    ./flickr_downloader.sh some_user@N00 /path/to/downloads
+#    ./flickr_downloader.sh 5ae791bbb3bc847bf6e68e6fd1956f59 some_user@N00 /path/to/downloads
 #    # pages=all
 #
 # 4. All three parameters:
-#    ./flickr_downloader.sh some_user@N00 /path/to/downloads 5
+#    ./flickr_downloader.sh 5ae791bbb3bc847bf6e68e6fd1956f59 some_user@N00 /path/to/downloads 5
 #    # Specific user, specific output dir, limit to 5 pages
 #
 # 5. Use defaults but specify pages:
-#    ./flickr_downloader.sh "" "" 3
+#    ./flickr_downloader.sh "" "" "" 3
 #    # Default user and current directory, but limit to 3 pages
 #
 # Parameter order:
-# 1. Flickr username (default: 46658241@N06)
-# 2. Output root directory (default: . = current directory)
-# 3. Number of pages (default: empty = all pages)
+# 1. Flickr API key (default: 5ae791bbb3bc847bf6e68e6fd1956f59)
+# 2. Flickr username (default: 46658241@N06)
+# 3. Output root directory (default: . = current directory)
+# 4. Number of pages (default: empty = all pages)
 #
 # The output directory will be created as [output_root]/flickr_[userid]_[timestamp]
 
@@ -45,13 +46,13 @@ set -e
 
 # Configuration - Default values set
 
-API_KEY="${API_KEY:-676e1e1eecab1d1e66dfda7517fe9ba2}"
+API_KEY="${1:-5ae791bbb3bc847bf6e68e6fd1956f59}"
 BASE_URL="https://api.flickr.com/services/rest/"
 
 # Parse command line arguments with defaults
-USER_ID="${1:-46658241@N06}"
-OUTPUT_ROOT="${2:-.}"
-MAX_PAGES="${3:-}"
+USER_ID="${2:-46658241@N06}"
+OUTPUT_ROOT="${3:-.}"
+MAX_PAGES="${4:-}"
 
 echo "Using user ID: $USER_ID"
 echo "Output root directory: $OUTPUT_ROOT"
