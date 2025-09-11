@@ -349,8 +349,8 @@ get_all_photos() {
         fi
         
         echo "Fetching page $page of $total_pages..."
-        
-        local response=$(flickr_api_call "flickr.people.getPhotos" "user_id=${USER_ID}&page=${page}&per_page=${per_page}&extras=description,license,date_upload,date_taken,owner_name,icon_server,original_format,last_update,geo,tags,machine_tags,o_dims,views,media,path_alias,url_sq,url_t,url_s,url_q,url_m,url_n,url_z,url_c,url_l,url_o")
+
+local response=$(flickr_api_call "flickr.people.getPhotos" "user_id=${USER_ID}&page=${page}&per_page=${per_page}&extras=description,license,date_upload,date_taken,owner_name,icon_server,original_format,last_update,geo,tags,machine_tags,o_dims,views,media,path_alias,url_s,url_n,url_w,url_m,url_z,url_c,url_l,url_h,url_k,url_3k,url_4k,url_5k,url_6k,url_o")
         
         # Check for API errors
         if echo "$response" | jq -e '.stat == "fail"' > /dev/null; then
@@ -531,8 +531,9 @@ while IFS= read -r photo_json; do
         skipped_photos=$((skipped_photos + 1))
     else
         # Try to get the largest available image URL
-        photo_url=$(echo "$photo_json" | jq -r '.url_o // .url_l // .url_c // .url_z // .url_m // .url_n // .url_s // .url_t // .url_sq // null')
-        
+
+   photo_url=$(echo "$photo_json" | jq -r '.url_o // .url_6k // .url_5k // .url_4k // .url_3k // .url_k // .url_h // .url_l // .url_c // .url_z // .url_m // .url_w // .url_n // .url_s // null')
+
         # Download the photo with retry logic
         if download_photo_with_retry "$photo_id" "$photo_url" "$photo_title"; then
             successful_downloads=$((successful_downloads + 1))
