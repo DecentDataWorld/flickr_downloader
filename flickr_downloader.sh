@@ -284,15 +284,18 @@ download_photo_with_retry() {
     while [ $retry_count -lt $max_retries ]; do
         echo "  Downloading: $filename"
         
-        # Use curl with HTTP status check
-        local http_code=$(curl -s -L -w "%{http_code}" "$photo_url" -o "$OUTPUT_DIR/photos/$filename")
+        # Download to temporary file first, then check status
+        local temp_file="$OUTPUT_DIR/photos/${filename}.tmp"
+        local http_code=$(curl -s -L -w "%{http_code}" "$photo_url" -o "$temp_file")
         
         if [ "$http_code" = "200" ]; then
+            # Success - move temp file to final location
+            mv "$temp_file" "$OUTPUT_DIR/photos/$filename"
             echo "  Download successful"
             return 0
         elif [ "$http_code" = "429" ]; then
             echo "  HTTP 429 - Too Many Requests"
-            rm -f "$OUTPUT_DIR/photos/$filename" # Remove partial download
+            rm -f "$temp_file" # Remove failed download
             
             retry_count=$((retry_count + 1))
             
@@ -302,26 +305,20 @@ download_photo_with_retry() {
                 wait_time=$((wait_time * 2))
                 continue
             else
-                echo "  Max retries reached for photo download. Skipping $filename..."
+                echo "  Max retries reached due to rate limiting. Skipping $filename..."
                 return 1
             fi
         else
-            echo "  HTTP error $http_code for $filename"
-            rm -f "$OUTPUT_DIR/photos/$filename" # Remove partial download
-            
-            retry_count=$((retry_count + 1))
-            
-            if [ $retry_count -lt $max_retries ]; then
-                echo "  Waiting $wait_time seconds before retry $retry_count/$max_retries..."
-                sleep $wait_time
-                wait_time=$((wait_time * 2))
-                continue
-            else
-                echo "  Max retries reached for photo download. Skipping $filename..."
-                return 1
-            fi
+            # Any other HTTP error - don't retry, just fail and continue
+            echo "  HTTP error $http_code for $filename - marking as failed"
+            rm -f "$temp_file" # Remove failed download
+            return 1
         fi
     done
+    
+    # If we get here, we've exhausted retries
+    echo "  Max retries reached for photo download. Skipping $filename..."
+    return 1
 }
 
 # Function to get user info
