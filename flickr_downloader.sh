@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Flickr Photo Downloader with Metadata - Version 23
+# Flickr Photo Downloader with Metadata - Version 23 (Fixed)
 # Now includes retry logic for HTTP 429 errors and named parameters
 # Usage: ./flickr_downloader.sh [options]
 
@@ -11,6 +11,8 @@ API_KEY="5ae791bbb3bc847bf6e68e6fd1956f59"
 USER_ID="46658241@N06"
 OUTPUT_ROOT="."
 MAX_PAGES=""
+FORCE_REDOWNLOAD=false
+RESUME_DIR=""
 
 BASE_URL="https://api.flickr.com/services/rest/"
 
@@ -32,6 +34,7 @@ OPTIONS:
     --user-id ID         Flickr user ID (default: 46658241@N06)  
     --output-dir DIR     Output root directory (default: current directory)
     --max-pages NUM      Maximum pages to fetch (default: all pages)
+    --force-redownload   Force redownload of existing files
     --help               Show this help message
 
 EXAMPLES:
@@ -46,6 +49,9 @@ EXAMPLES:
     
     # Limit to first 5 pages with custom API key
     $0 --api-key YOUR_KEY --user-id some_user@N00 --max-pages 5
+    
+    # Force redownload all files
+    $0 --force-redownload
     
     # All parameters
     $0 --api-key YOUR_KEY --user-id some_user@N00 --output-dir ~/flickr --max-pages 10
@@ -85,9 +91,17 @@ while [[ $# -gt 0 ]]; do
             OUTPUT_ROOT="$2"
             shift 2
             ;;
+        --resume-dir)
+            RESUME_DIR="$2"
+            shift 2
+            ;;
         --max-pages)
             MAX_PAGES="$2"
             shift 2
+            ;;
+        --force-redownload)
+            FORCE_REDOWNLOAD=true
+            shift
             ;;
         --help|-h)
             show_help
@@ -105,24 +119,88 @@ echo "Configuration:"
 echo "  API Key: ${API_KEY:0:10}..."
 echo "  User ID: $USER_ID"
 echo "  Output root directory: $OUTPUT_ROOT"
+if [ -n "$RESUME_DIR" ]; then
+    echo "  Resume directory: $RESUME_DIR"
+fi
 if [ -n "$MAX_PAGES" ]; then
     echo "  Will fetch maximum $MAX_PAGES pages"
 else
     echo "  Will fetch all pages"
+fi
+if [ "$FORCE_REDOWNLOAD" = true ]; then
+    echo "  Force redownload: enabled"
 fi
 
 # Global variable to store photo count
 total_photos=0
 
 # Create output directory
-OUTPUT_DIR="$OUTPUT_ROOT/flickr_${USER_ID}_$(date +%Y%m%d_%H%M%S)"
-
-# Create output directories
-mkdir -p "$OUTPUT_DIR/photos"
-mkdir -p "$OUTPUT_DIR/metadata"
+if [ -n "$RESUME_DIR" ]; then
+    OUTPUT_DIR="$RESUME_DIR"
+    echo "Resuming download in existing directory: $OUTPUT_DIR"
+    
+    # Validate the resume directory exists and has the expected structure
+    if [ ! -d "$OUTPUT_DIR" ]; then
+        echo "Error: Resume directory '$OUTPUT_DIR' does not exist!"
+        exit 1
+    fi
+    
+    # Create subdirectories if they don't exist
+    mkdir -p "$OUTPUT_DIR/photos"
+    mkdir -p "$OUTPUT_DIR/metadata"
+    
+    # Extract user ID from existing directory if not specified
+    if [ "$USER_ID" = "46658241@N06" ]; then  # Only if using default
+        extracted_user_id=$(basename "$OUTPUT_DIR" | sed 's/flickr_\([^_]*\)_.*/\1/')
+        if [ -n "$extracted_user_id" ] && [ "$extracted_user_id" != "flickr" ]; then
+            USER_ID="$extracted_user_id"
+            echo "Extracted User ID from directory: $USER_ID"
+        fi
+    fi
+else
+    OUTPUT_DIR="$OUTPUT_ROOT/flickr_${USER_ID}_$(date +%Y%m%d_%H%M%S)"
+    # Create output directories
+    mkdir -p "$OUTPUT_DIR/photos"
+    mkdir -p "$OUTPUT_DIR/metadata"
+fi
 
 echo "Starting download for user: $USER_ID"
 echo "Output directory: $OUTPUT_DIR"
+
+# Function to check if metadata already exists
+metadata_already_exists() {
+    local photo_id="$1"
+    [ "$FORCE_REDOWNLOAD" != true ] && [ -f "$OUTPUT_DIR/metadata/${photo_id}.json" ]
+}
+
+# Function to check if photo already exists
+photo_already_exists() {
+    local photo_id="$1"
+    if [ "$FORCE_REDOWNLOAD" = true ]; then
+        return 1  # Always download if forcing redownload
+    fi
+    
+    # Check for any file starting with the photo ID
+    local photo_files=$(find "$OUTPUT_DIR/photos" -name "${photo_id}_*" 2>/dev/null | wc -l)
+    [ "$photo_files" -gt 0 ]
+}
+
+# Function to get existing photo IDs for resume capability
+get_existing_photo_ids() {
+    # This function was referenced but not needed for basic functionality
+    # Could be used to build a list of existing photos for more efficient resume
+    echo "Checking for existing photos in $OUTPUT_DIR..."
+    
+    if [ -d "$OUTPUT_DIR/photos" ]; then
+        local existing_count=$(find "$OUTPUT_DIR/photos" -name "*.jpg" -o -name "*.png" -o -name "*.gif" 2>/dev/null | wc -l)
+        echo "Found $existing_count existing photo files"
+    fi
+    
+    if [ -d "$OUTPUT_DIR/metadata" ]; then
+        local existing_metadata=$(find "$OUTPUT_DIR/metadata" -name "*.json" 2>/dev/null | wc -l)
+        echo "Found $existing_metadata existing metadata files"
+    fi
+}
 
 # Function to make API calls with retry logic
 flickr_api_call() {
@@ -196,6 +274,11 @@ download_photo_with_retry() {
     # Clean title for filename
     local clean_title=$(echo "$title" | sed 's/[^a-zA-Z0-9._-]/_/g' | cut -c1-50)
     local extension="${photo_url##*.}"
+    # Handle URLs with query parameters
+    extension=$(echo "$extension" | cut -d'?' -f1)
+    if [ -z "$extension" ] || [ ${#extension} -gt 4 ]; then
+        extension="jpg"  # Default extension
+    fi
     local filename="${photo_id}_${clean_title}.${extension}"
     
     while [ $retry_count -lt $max_retries ]; do
